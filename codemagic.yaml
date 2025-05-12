@@ -16,10 +16,10 @@ workflows:
         script: flutter pub get
       - name: Flutter analyze
         script: flutter analyze
-      - name: Build APK
-        script: flutter build apk --debug
+      - name: Build App Bundle
+        script: flutter build appbundle --debug
     artifacts:
-      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/debug/*.aab
     publishing:
       email:
         recipients:
