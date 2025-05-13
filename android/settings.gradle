@@ -25,6 +25,12 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+
+    plugins {
+        id 'com.android.application' version '7.3.1'
+        id 'org.jetbrains.kotlin.android' version '1.8.10'
+        id 'dev.flutter.flutter-gradle-plugin'
+    }
 }
 
 include ':app'
