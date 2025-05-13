@@ -1,6 +1,6 @@
 android {
     namespace "com.example.crypto_monitor"
-    compileSdkVersion 34
+    compileSdk 34
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -18,8 +18,8 @@ android {
 
     defaultConfig {
         applicationId "com.example.crypto_monitor"
-        minSdkVersion 21
-        targetSdkVersion 34
+        minSdk 21
+        targetSdk 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
