@@ -113,7 +113,8 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
   // Format large numbers with commas
   String formatPrice(dynamic price) {
     if (price is num) {
-      final formatter = NumberFormat('#,##0.00', 'en_US');
+      // Use #,##0.## pattern to only show decimal places when needed
+      final formatter = NumberFormat('#,##0.##', 'en_US');
       return formatter.format(price);
     }
     return price.toString();
