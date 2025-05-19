@@ -1,8 +1,30 @@
+import java.util.Properties
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Read version from constants.dart during configuration phase
+val constantsFile = File("${project.rootDir}/../lib/constants.dart")
+var appLabel = "Crypto Price Tracker" // Default value
+if (constantsFile.exists()) {
+    val content = constantsFile.readText()
+    val versionPattern = """static const String appVersion = "(.*?)";""".toRegex()
+    val namePattern = """static const String appName = "(.*?)";""".toRegex()
+    
+    val versionMatch = versionPattern.find(content)
+    val nameMatch = namePattern.find(content)
+    
+    if (versionMatch != null && nameMatch != null) {
+        val appVersion = versionMatch.groupValues[1]
+        val appName = nameMatch.groupValues[1]
+        appLabel = "$appName $appVersion"
+        println("Using app label: $appLabel")
+    }
 }
 
 android {
@@ -28,6 +50,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Set the app label from our constants
+        manifestPlaceholders["appLabel"] = appLabel
     }
 
     buildTypes {

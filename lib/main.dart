@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'constants.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Crypto Price Tracker v1.1',
+      title: AppConstants.appName,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -137,13 +138,13 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Crypto Price Tracker v1.1'),
+        title: Text(AppConstants.appName),
         actions: [
           // Version indicator
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             alignment: Alignment.center,
-            child: const Text('v1.1', style: TextStyle(fontSize: 12)),
+            child: Text(AppConstants.appVersion, style: const TextStyle(fontSize: 12)),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
