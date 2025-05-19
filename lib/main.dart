@@ -249,7 +249,7 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '\$${formattedPrice}',
+              '${formattedPrice}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -290,7 +290,7 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
             ),
             subtitle: Text(symbol.toUpperCase()),
             trailing: Text(
-              '\$${formattedPrice}',
+              '${formattedPrice}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
