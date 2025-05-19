@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 void main() {
   runApp(const MyApp());
@@ -13,7 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Crypto Price Tracker',
+      title: 'Crypto Price Tracker v1.1',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -42,17 +43,62 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
   }
 
   Future<void> fetchCryptoPrices() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+    
     try {
-      final response = await http.get(Uri.parse('https://crypto.m-gh.com/api/v1/exc/cached-prices/'));
+      // First attempt with primary URL
+      final client = http.Client();
+      final request = http.Request('GET', Uri.parse('https://crypto.m-gh.com/api/v1/exc/cached-prices/'));
       
-      if (response.statusCode == 200) {
+      try {
+        // Set timeout
+        final streamedResponse = await client.send(request)
+            .timeout(const Duration(seconds: 10), 
+              onTimeout: () => throw TimeoutException('Connection timeout. Please check your internet connection.'));
+              
+        final response = await http.Response.fromStream(streamedResponse);
+        
+        if (response.statusCode == 200) {
+          setState(() {
+            cryptoPrices = json.decode(response.body);
+            isLoading = false;
+          });
+          return; // Success, exit early
+        }
+      } catch (primaryError) {
+        // Log the primary error but continue to fallback
+        print('Primary API failed: $primaryError');
+        // Don't set error state yet, try fallback first
+      }
+      
+      // Try fallback API (CoinGecko as example)
+      try {
+        final fallbackResponse = await http.get(
+          Uri.parse('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,litecoin&vs_currencies=usd'),
+        ).timeout(const Duration(seconds: 10));
+        
+        if (fallbackResponse.statusCode == 200) {
+          final Map<String, dynamic> fallbackData = json.decode(fallbackResponse.body);
+          // Convert CoinGecko response to match our app's format
+          final adaptedData = {
+            'btc': fallbackData['bitcoin']?['usd'] ?? 0,
+            'eth': fallbackData['ethereum']?['usd'] ?? 0,
+            'ltc': fallbackData['litecoin']?['usd'] ?? 0,
+          };
+          
+          setState(() {
+            cryptoPrices = adaptedData;
+            isLoading = false;
+          });
+        } else {
+          throw Exception('Fallback API failed with status: ${fallbackResponse.statusCode}');
+        }
+      } catch (fallbackError) {
         setState(() {
-          cryptoPrices = json.decode(response.body);
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          errorMessage = 'Failed to load data: ${response.statusCode}';
+          errorMessage = 'All API attempts failed. Please check your internet connection.';
           isLoading = false;
         });
       }
@@ -90,8 +136,14 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Crypto Price Tracker'),
+        title: const Text('Crypto Price Tracker v1.1'),
         actions: [
+          // Version indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            alignment: Alignment.center,
+            child: const Text('v1.1', style: TextStyle(fontSize: 12)),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
