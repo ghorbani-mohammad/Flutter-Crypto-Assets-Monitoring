@@ -2,6 +2,10 @@
 
 A new Flutter project.
 
+## App Screenshot
+
+![Crypto Price Tracker v1.4 Screenshot](Screenshot_20250519-132631_Crypto%20Price%20Tracker%20v1.4.png)
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
