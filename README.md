@@ -4,4 +4,4 @@ Manage your assets by help of AI to boost your profits.
 
 ## App Screenshot
 
-![Crypto Price Tracker v1.5 Screenshot](image.png)
+<img src="image.png" alt="Crypto Price Tracker v1.5 Screenshot" width="500">
