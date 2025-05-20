@@ -17,7 +17,23 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: AppConstants.appName,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.light(
+          primary: const Color(0xFF1565C0),    // Deep blue
+          secondary: const Color(0xFF2E7D32),  // Green
+          tertiary: const Color(0xFF00BFA5),   // Teal green
+          primaryContainer: const Color(0xFFE3F2FD), // Light blue
+          secondaryContainer: const Color(0xFFE8F5E9), // Light green
+          background: Colors.white,
+          surface: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1565C0),
+          foregroundColor: Colors.white,
+        ),
+        cardTheme: CardTheme(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
         useMaterial3: true,
       ),
       home: const CryptoPriceScreen(),
@@ -137,7 +153,6 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(AppConstants.appName),
         actions: [
           // Version indicator
@@ -157,11 +172,13 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
           ),
         ],
       ),
+      backgroundColor: const Color(0xFFF5F9FD), // Light blue background
       body: isLoading 
-        ? const Center(child: CircularProgressIndicator())
+        ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
         : errorMessage != null
           ? Center(child: Text(errorMessage!, style: const TextStyle(color: Colors.red)))
           : RefreshIndicator(
+              color: Theme.of(context).colorScheme.primary,
               onRefresh: fetchCryptoPrices,
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -189,18 +206,31 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Featured Cryptocurrencies',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Theme.of(context).colorScheme.primary.withOpacity(0.05),
+              Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Featured Cryptocurrencies',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
-            ),
             const SizedBox(height: 16),
             Row(
               children: featuredCoins.map((symbol) {
@@ -212,6 +242,7 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -228,8 +259,17 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
         ? '${symbol[0].toUpperCase()}${symbol.substring(1)}'
         : '';
 
+    // Use primary container for BTC and secondary container for ETH
+    final cardColor = symbol.toLowerCase() == 'btc' 
+        ? Theme.of(context).colorScheme.primaryContainer
+        : Theme.of(context).colorScheme.secondaryContainer;
+        
+    final iconColor = symbol.toLowerCase() == 'btc'
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.secondary;
+
     return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
+      color: cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -237,13 +277,14 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
           children: [
             Row(
               children: [
-                Icon(getCryptoIcon(symbol), size: 24),
+                Icon(getCryptoIcon(symbol), size: 24, color: iconColor),
                 const SizedBox(width: 8),
                 Text(
                   coinName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
+                    color: iconColor,
                   ),
                 ),
               ],
@@ -251,9 +292,10 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
             const SizedBox(height: 8),
             Text(
               '${formattedPrice}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ],
@@ -278,23 +320,38 @@ class _CryptoPriceScreenState extends State<CryptoPriceScreen> {
             ? '${symbol[0].toUpperCase()}${symbol.substring(1)}'
             : '';
 
+        // Alternate between primary and secondary colors for list items
+        final isEven = index % 2 == 0;
+        final avatarColor = isEven 
+            ? Theme.of(context).colorScheme.primaryContainer
+            : Theme.of(context).colorScheme.secondaryContainer;
+        final iconColor = isEven
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.secondary;
+            
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: Icon(getCryptoIcon(symbol)),
+              backgroundColor: avatarColor,
+              child: Icon(getCryptoIcon(symbol), color: iconColor),
             ),
             title: Text(
               coinName,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: iconColor,
+              ),
             ),
             subtitle: Text(symbol.toUpperCase()),
             trailing: Text(
               '${formattedPrice}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
+                color: isEven 
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.secondary,
               ),
             ),
           ),
