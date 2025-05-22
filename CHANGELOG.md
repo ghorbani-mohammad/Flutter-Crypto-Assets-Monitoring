@@ -1,4 +1,13 @@
-# 0.1.0 (2025-05-22)
+# [0.2.0](https://github.com/ghorbani-mohammad/Flutter-Crypto-Assets-Monitoring/compare/v0.1.0...v0.2.0) (2025-05-22)
+
+
+### Features
+
+* adds ci ([62f8734](https://github.com/ghorbani-mohammad/Flutter-Crypto-Assets-Monitoring/commit/62f8734c26982cb74cd7243141ab5a37f8f865b4))
+
+
+
+# [0.1.0](https://github.com/ghorbani-mohammad/Flutter-Crypto-Assets-Monitoring/compare/8747f4a74f95b73f62d83cd7c51da591465339a4...v0.1.0) (2025-05-22)
 
 
 ### Bug Fixes
