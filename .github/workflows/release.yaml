@@ -8,33 +8,43 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      # 1) Checkout full history (all tags too)
+      - name: Checkout full repo
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0       # so we can tag
-          
+          fetch-depth: 0              # so tags & history are available
+          persist-credentials: true   # keep ${{ secrets.GITHUB_TOKEN }} configured
+
+      # 2) Configure Git user so 'commit' & 'push' work
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # 3) Generate CHANGELOG, bump semver tag, commit & push both
       - name: Generate CHANGELOG & bump tag
         id: changelog
         uses: TriPSs/conventional-changelog-action@latest
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          commit: true         # commit updated CHANGELOG.md
-          push: true           # push new tag to repo
+          commit: true     # commit updated CHANGELOG.md
+          push: true       # push new tag & CHANGELOG.md
 
+      # 4) Bump pubspec.yaml version to match the tag + build number
       - name: Bump pubspec version
         if: steps.changelog.outputs.skipped == 'false'
         run: |
-          TAG=${{ steps.changelog.outputs.tag }}   # e.g. "v1.2.3"
-          # remove leading "v" and set build number to run number:
-          VER=${TAG#v}
+          TAG=${{ steps.changelog.outputs.tag }}      # e.g. "v1.2.3"
+          VER=${TAG#v}                                # strips leading "v"
+          # Update version and set build number to this run number
           sed -i "s/^version:.*/version: ${VER}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pubspec.yaml
-          git commit -m "chore: bump pubspec to ${VER}"
+          git commit -m "chore: bump pubspec to ${VER}+${GITHUB_RUN_NUMBER}"
           git push
 
+      # 5) Install Flutter & dependencies
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -43,24 +53,27 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # 6) Build your release APK
       - name: Build Android release
         run: flutter build apk --release
 
+      # 7) Create the GitHub Release (with changelog body)
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         if: steps.changelog.outputs.skipped == 'false'
         with:
           tag_name: ${{ steps.changelog.outputs.tag }}
-          name: ${{ steps.changelog.outputs.tag }}
-          body: ${{ steps.changelog.outputs.clean_changelog }}
+          name:    ${{ steps.changelog.outputs.tag }}
+          body:    ${{ steps.changelog.outputs.clean_changelog }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # 8) Upload the APK artifact to the Release
       - name: Upload APK asset
         uses: softprops/action-gh-release@v1
         if: steps.changelog.outputs.skipped == 'false'
         with:
           tag_name: ${{ steps.changelog.outputs.tag }}
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files:    build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
