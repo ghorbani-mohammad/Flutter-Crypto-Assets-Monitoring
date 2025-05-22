@@ -1,4 +1,4 @@
-name: Release using conventional commits on master
+name: Release using version from constants.dart
 
 # ────────────────────────────────────────────────────
 # 1) Give the built-in GITHUB_TOKEN write access to repo contents
@@ -34,31 +34,54 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       # ────────────────────────────────────────────────────
-      # 4) Run the changelog action (it will now be able to push)
+      # 4) Extract version from constants.dart
       # ────────────────────────────────────────────────────
-      - name: Generate CHANGELOG & bump tag
-        id: changelog
-        uses: TriPSs/conventional-changelog-action@latest
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          commit: true
-          push: true
+      - name: Extract version from constants.dart
+        id: extract_version
+        run: |
+          # Extract version from constants.dart (e.g., "v1.6.2")
+          VERSION=$(grep 'appVersion = ' lib/constants.dart | sed 's/.*"\(.*\)".*/\1/')
+          echo "Found version: $VERSION"
+          
+          # Check if this version already has a tag
+          if git tag -l | grep -q "^$VERSION$"; then
+            echo "Tag $VERSION already exists, skipping release"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            echo "tag=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "New version detected: $VERSION"
+            echo "skipped=false" >> $GITHUB_OUTPUT
+            echo "tag=$VERSION" >> $GITHUB_OUTPUT
+            
+            # Strip 'v' prefix for pubspec version
+            PUBSPEC_VERSION=${VERSION#v}
+            echo "pubspec_version=$PUBSPEC_VERSION" >> $GITHUB_OUTPUT
+          fi
 
       # ────────────────────────────────────────────────────
-      # 5) Bump pubspec.yaml to match the new semver tag + build #
+      # 5) Create git tag for the new version
+      # ────────────────────────────────────────────────────
+      - name: Create git tag
+        if: steps.extract_version.outputs.skipped == 'false'
+        run: |
+          TAG=${{ steps.extract_version.outputs.tag }}
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      # ────────────────────────────────────────────────────
+      # 6) Bump pubspec.yaml to match the new version + build #
       # ────────────────────────────────────────────────────
       - name: Bump pubspec version
-        if: steps.changelog.outputs.skipped == 'false'
+        if: steps.extract_version.outputs.skipped == 'false'
         run: |
-          TAG=${{ steps.changelog.outputs.tag }}      # e.g. "v1.2.3"
-          VER=${TAG#v}                                # strips "v"
+          VER=${{ steps.extract_version.outputs.pubspec_version }}
           sed -i "s/^version:.*/version: ${VER}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
           git add pubspec.yaml
           git commit -m "chore: bump pubspec to ${VER}+${GITHUB_RUN_NUMBER}"
           git push
 
       # ────────────────────────────────────────────────────
-      # 6) Build & release your Flutter APK
+      # 7) Build & release your Flutter APK
       # ────────────────────────────────────────────────────
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -71,24 +94,50 @@ jobs:
       - name: Build Android release
         run: flutter build apk --release
 
-      # 8) Create or update the GitHub Release
+      # ────────────────────────────────────────────────────
+      # 8) Generate changelog from recent commits
+      # ────────────────────────────────────────────────────
+      - name: Generate changelog
+        if: steps.extract_version.outputs.skipped == 'false'
+        id: changelog
+        run: |
+          # Get commits since last tag (or all commits if no previous tags)
+          LAST_TAG=$(git tag --sort=-version:refname | head -n 2 | tail -n 1)
+          if [ -z "$LAST_TAG" ] || [ "$LAST_TAG" = "${{ steps.extract_version.outputs.tag }}" ]; then
+            # No previous tag or only current tag exists
+            CHANGELOG=$(git log --pretty=format:"- %s" --reverse)
+          else
+            # Get commits since last tag
+            CHANGELOG=$(git log ${LAST_TAG}..${{ steps.extract_version.outputs.tag }} --pretty=format:"- %s" --reverse)
+          fi
+          
+          # Save changelog to output
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # ────────────────────────────────────────────────────
+      # 9) Create or update the GitHub Release
+      # ────────────────────────────────────────────────────
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
-        if: steps.changelog.outputs.skipped == 'false'
+        if: steps.extract_version.outputs.skipped == 'false'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name:     ${{ steps.changelog.outputs.tag }}
-          release_name: ${{ steps.changelog.outputs.tag }}
-          body:         ${{ steps.changelog.outputs.clean_changelog }}
+          tag_name:     ${{ steps.extract_version.outputs.tag }}
+          release_name: ${{ steps.extract_version.outputs.tag }}
+          body:         ${{ steps.changelog.outputs.changelog }}
           draft:        false
           prerelease:   false
 
-      # 9) Upload the APK as a release asset
+      # ────────────────────────────────────────────────────
+      # 10) Upload the APK as a release asset
+      # ────────────────────────────────────────────────────
       - name: Upload APK to Release
         uses: actions/upload-release-asset@v1
-        if: steps.changelog.outputs.skipped == 'false'
+        if: steps.extract_version.outputs.skipped == 'false'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
