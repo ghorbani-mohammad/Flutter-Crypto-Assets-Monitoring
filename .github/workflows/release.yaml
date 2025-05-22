@@ -1,0 +1,66 @@
+name: Release using conventional commits on master
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0       # so we can tag
+          
+      - name: Generate CHANGELOG & bump tag
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@latest
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          commit: true         # commit updated CHANGELOG.md
+          push: true           # push new tag to repo
+
+      - name: Bump pubspec version
+        if: steps.changelog.outputs.skipped == 'false'
+        run: |
+          TAG=${{ steps.changelog.outputs.tag }}   # e.g. "v1.2.3"
+          # remove leading "v" and set build number to run number:
+          VER=${TAG#v}
+          sed -i "s/^version:.*/version: ${VER}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pubspec.yaml
+          git commit -m "chore: bump pubspec to ${VER}"
+          git push
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android release
+        run: flutter build apk --release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: steps.changelog.outputs.skipped == 'false'
+        with:
+          tag_name: ${{ steps.changelog.outputs.tag }}
+          name: ${{ steps.changelog.outputs.tag }}
+          body: ${{ steps.changelog.outputs.clean_changelog }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload APK asset
+        uses: softprops/action-gh-release@v1
+        if: steps.changelog.outputs.skipped == 'false'
+        with:
+          tag_name: ${{ steps.changelog.outputs.tag }}
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
