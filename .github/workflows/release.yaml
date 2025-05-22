@@ -1,5 +1,11 @@
 name: Release using conventional commits on master
 
+# ────────────────────────────────────────────────────
+# 1) Give the built-in GITHUB_TOKEN write access to repo contents
+# ────────────────────────────────────────────────────
+permissions:
+  contents: write
+
 on:
   push:
     branches:
@@ -10,41 +16,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout full history (all tags too)
+      # ────────────────────────────────────────────────────
+      # 2) Checkout full history (so tags & commits can be read/pushed)
+      # ────────────────────────────────────────────────────
       - name: Checkout full repo
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0              # so tags & history are available
-          persist-credentials: true   # keep ${{ secrets.GITHUB_TOKEN }} configured
+          fetch-depth: 0
+          persist-credentials: true
 
-      # 2) Configure Git user so 'commit' & 'push' work
+      # ────────────────────────────────────────────────────
+      # 3) Configure git user (so commits & tags carry an identity)
+      # ────────────────────────────────────────────────────
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      # 3) Generate CHANGELOG, bump semver tag, commit & push both
+      # ────────────────────────────────────────────────────
+      # 4) Run the changelog action (it will now be able to push)
+      # ────────────────────────────────────────────────────
       - name: Generate CHANGELOG & bump tag
         id: changelog
         uses: TriPSs/conventional-changelog-action@latest
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          commit: true     # commit updated CHANGELOG.md
-          push: true       # push new tag & CHANGELOG.md
+          commit: true
+          push: true
 
-      # 4) Bump pubspec.yaml version to match the tag + build number
+      # ────────────────────────────────────────────────────
+      # 5) Bump pubspec.yaml to match the new semver tag + build #
+      # ────────────────────────────────────────────────────
       - name: Bump pubspec version
         if: steps.changelog.outputs.skipped == 'false'
         run: |
           TAG=${{ steps.changelog.outputs.tag }}      # e.g. "v1.2.3"
-          VER=${TAG#v}                                # strips leading "v"
-          # Update version and set build number to this run number
+          VER=${TAG#v}                                # strips "v"
           sed -i "s/^version:.*/version: ${VER}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
           git add pubspec.yaml
           git commit -m "chore: bump pubspec to ${VER}+${GITHUB_RUN_NUMBER}"
           git push
 
-      # 5) Install Flutter & dependencies
+      # ────────────────────────────────────────────────────
+      # 6) Build & release your Flutter APK
+      # ────────────────────────────────────────────────────
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -53,11 +68,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # 6) Build your release APK
       - name: Build Android release
         run: flutter build apk --release
 
-      # 7) Create the GitHub Release (with changelog body)
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         if: steps.changelog.outputs.skipped == 'false'
@@ -68,7 +81,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 8) Upload the APK artifact to the Release
       - name: Upload APK asset
         uses: softprops/action-gh-release@v1
         if: steps.changelog.outputs.skipped == 'false'
