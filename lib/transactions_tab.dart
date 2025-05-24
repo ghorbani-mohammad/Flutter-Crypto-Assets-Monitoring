@@ -5,6 +5,57 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 import 'constants.dart';
 
+class Coin {
+  final int id;
+  final String title;
+  final String code;
+  final String? iconUrl;
+  final String? iconBackgroundColor;
+
+  Coin({
+    required this.id,
+    required this.title,
+    required this.code,
+    this.iconUrl,
+    this.iconBackgroundColor,
+  });
+
+  factory Coin.fromJson(Map<String, dynamic> json) {
+    return Coin(
+      id: json['id'],
+      title: json['title'] ?? '',
+      code: json['code'] ?? '',
+      iconUrl: json['icon_url'],
+      iconBackgroundColor: json['icon_background_color'],
+    );
+  }
+}
+
+class CoinsResponse {
+  final int count;
+  final String? next;
+  final String? previous;
+  final List<Coin> results;
+
+  CoinsResponse({
+    required this.count,
+    this.next,
+    this.previous,
+    required this.results,
+  });
+
+  factory CoinsResponse.fromJson(Map<String, dynamic> json) {
+    return CoinsResponse(
+      count: json['count'] ?? 0,
+      next: json['next'],
+      previous: json['previous'],
+      results: (json['results'] as List<dynamic>?)
+          ?.map((item) => Coin.fromJson(item))
+          .toList() ?? [],
+    );
+  }
+}
+
 class Transaction {
   final int id;
   final String type;
@@ -60,10 +111,16 @@ class _TransactionsTabState extends State<TransactionsTab> {
   String? nextPageUrl;
   bool isLoadingMore = false;
   final ScrollController _scrollController = ScrollController();
+  
+  // Coin filtering variables
+  List<Coin> coins = [];
+  Coin? selectedCoin;
+  bool isLoadingCoins = false;
 
   @override
   void initState() {
     super.initState();
+    fetchCoins();
     fetchTransactions();
     _scrollController.addListener(_scrollListener);
   }
@@ -89,8 +146,13 @@ class _TransactionsTabState extends State<TransactionsTab> {
     });
     
     try {
+      String apiUrl = 'https://crypto.m-gh.com/api/v1/exc/transactions/';
+      if (selectedCoin != null) {
+        apiUrl += '?coin=${selectedCoin!.id}';
+      }
+      
       final response = await http.get(
-        Uri.parse('https://crypto.m-gh.com/api/v1/exc/transactions/'),
+        Uri.parse(apiUrl),
       ).timeout(const Duration(seconds: 15));
       
       if (response.statusCode == 200) {
@@ -151,6 +213,41 @@ class _TransactionsTabState extends State<TransactionsTab> {
     }
   }
 
+  Future<void> fetchCoins() async {
+    setState(() {
+      isLoadingCoins = true;
+    });
+    
+    try {
+      List<Coin> allCoins = [];
+      String? nextUrl = 'https://crypto.m-gh.com/api/v1/exc/coins/?page=1';
+      
+      // Fetch all pages of coins
+      while (nextUrl != null) {
+        final response = await http.get(Uri.parse(nextUrl))
+            .timeout(const Duration(seconds: 10));
+        
+        if (response.statusCode == 200) {
+          final coinsResponse = CoinsResponse.fromJson(json.decode(response.body));
+          allCoins.addAll(coinsResponse.results);
+          nextUrl = coinsResponse.next;
+        } else {
+          break;
+        }
+      }
+      
+      setState(() {
+        coins = allCoins;
+        isLoadingCoins = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoadingCoins = false;
+      });
+      print('Error fetching coins: $e');
+    }
+  }
+
   String formatDate(String date) {
     // The date comes in format "1400-10-21 03:30:00" (Persian calendar)
     // We'll just display it as-is for now
@@ -201,19 +298,152 @@ class _TransactionsTabState extends State<TransactionsTab> {
     }
   }
 
+  void _onCoinSelected(Coin? coin) {
+    setState(() {
+      selectedCoin = coin;
+      transactions.clear(); // Clear current transactions
+      nextPageUrl = null; // Reset pagination
+    });
+    fetchTransactions(); // Fetch transactions with new filter
+  }
+
+  Widget _buildCoinDropdown() {
+    return Container(
+      margin: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<Coin?>(
+          value: selectedCoin,
+          hint: const Text('Filter by Coin'),
+          isExpanded: true,
+          icon: const Icon(Icons.filter_list),
+          onChanged: _onCoinSelected,
+          items: [
+            const DropdownMenuItem<Coin?>(
+              value: null,
+              child: Text('All Coins'),
+            ),
+            ...coins.map<DropdownMenuItem<Coin?>>((Coin coin) {
+              return DropdownMenuItem<Coin?>(
+                value: coin,
+                child: Row(
+                  children: [
+                    if (coin.iconUrl != null)
+                      Container(
+                        width: 24,
+                        height: 24,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey.shade200,
+                        ),
+                        child: ClipOval(
+                          child: Image.network(
+                            coin.iconUrl!,
+                            width: 24,
+                            height: 24,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.monetization_on,
+                                size: 16,
+                                color: Colors.grey.shade600,
+                              );
+                            },
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 24,
+                        height: 24,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey.shade200,
+                        ),
+                        child: Icon(
+                          Icons.monetization_on,
+                          size: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    Expanded(
+                      child: Text(
+                        '${coin.title} (${coin.code})',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return isLoading 
-      ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
-      : errorMessage != null
-        ? Center(child: Text(errorMessage!, style: const TextStyle(color: Colors.red)))
-        : transactions.isEmpty
-          ? Center(child: Text('No transactions found'))
-          : RefreshIndicator(
-              onRefresh: fetchTransactions,
-              child: Column(
-                children: [
-                  Expanded(
+    return Column(
+      children: [
+        // Show coin dropdown if coins are loaded
+        if (coins.isNotEmpty) _buildCoinDropdown(),
+        
+        // Show loading indicator or transactions
+        Expanded(
+          child: isLoading 
+            ? Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary))
+            : errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(errorMessage!, style: const TextStyle(color: Colors.red)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          fetchCoins();
+                          fetchTransactions();
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : transactions.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.receipt_long,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          selectedCoin != null 
+                            ? 'No transactions found for ${selectedCoin!.title}'
+                            : 'No transactions found',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () async {
+                      await fetchCoins();
+                      await fetchTransactions();
+                    },
                     child: ListView.builder(
                       controller: _scrollController,
                       itemCount: transactions.length + (nextPageUrl != null ? 1 : 0),
@@ -374,8 +604,8 @@ class _TransactionsTabState extends State<TransactionsTab> {
                       },
                     ),
                   ),
-                ],
-              ),
-            );
+                ),
+      ],
+    );
   }
 } 

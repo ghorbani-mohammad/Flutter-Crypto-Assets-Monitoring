@@ -11,20 +11,23 @@ class CryptoCoin {
   final String title;
   final String? icon;
   final double? price;
+  final String? iconBackgroundColor;
 
   CryptoCoin({
     required this.code,
     required this.title,
     this.icon,
     this.price,
+    this.iconBackgroundColor,
   });
 
   factory CryptoCoin.fromJson(Map<String, dynamic> json) {
     return CryptoCoin(
       code: json['code'] ?? '',
       title: json['title'] ?? '',
-      icon: json['icon'],
+      icon: json['icon'] ?? json['icon_url'],
       price: json['price']?.toDouble(),
+      iconBackgroundColor: json['icon_background_color'],
     );
   }
 }
@@ -209,100 +212,34 @@ class _FavoritesTabState extends State<FavoritesTab> {
 
   // Get crypto icon based on symbol
   IconData getCryptoIcon(String symbol) {
-    switch (symbol.toLowerCase()) {
-      case 'btc':
-        return Icons.currency_bitcoin;
-      case 'eth':
-        return Icons.account_balance_wallet;
-      case 'bnb':
-        return Icons.account_balance;
-      case 'trx':
-        return Icons.trending_up;
-      case 'matic':
-        return Icons.hexagon;
-      case 'ton':
-        return Icons.circle_rounded;
-      case 'cake':
-        return Icons.cake;
-      case 'usdt':
-        return Icons.money;
-      case 'ada':
-        return Icons.auto_awesome;
-      case 's':
-        return Icons.speed;
-      case 'sol':
-        return Icons.wb_sunny;
-      case 'avax':
-        return Icons.timeline;
-      case 'metis':
-        return Icons.blur_circular;
-      case 'dot':
-        return Icons.grid_view;
-      case 'xrp':
-        return Icons.waterfall_chart;
-      case 'ltc':
-        return Icons.monetization_on_outlined;
-      case 'doge':
-        return Icons.pets;
-      case 'shib':
-        return Icons.emoji_nature;
-      case 'link':
-        return Icons.link;
-      case 'atom':
-        return Icons.public;
-      case 'uni':
-        return Icons.track_changes;
-      case 'dai':
-        return Icons.brightness_high;
-      case 'op':
-        return Icons.light_mode;
-      default:
-        return Icons.monetization_on;
-    }
+    return Icons.monetization_on;
   }
 
-  // Get color for coin logo background
-  Color getCoinLogoBackground(String code) {
-    switch (code.toLowerCase()) {
-      case 'ton':
-        return Colors.blue.shade300;
-      case 'cake':
-        return Colors.amber.shade300;
-      case 's':
-        return Colors.indigo.shade300;
-      case 'ada':
-        return Colors.blue.shade200;
-      case 'usdt':
-        return Colors.green.shade200;
-      case 'btc':
-        return Colors.orange.shade200;
-      case 'eth':
-        return Colors.purple.shade200;
-      case 'bnb':
-        return Colors.yellow.shade200;
-      case 'trx':
-        return Colors.red.shade200;
-      case 'matic':
-        return Colors.indigo.shade200;
-      case 'ltc':
-        return Colors.blueGrey.shade200;
-      case 'sol':
-        return Colors.deepPurple.shade300;
-      case 'avax':
-        return Colors.red.shade300;
-      case 'metis':
-        return Colors.teal.shade300;
-      case 'dot':
-        return Colors.pink.shade300;
-      default:
-        return Colors.grey.shade300; // Default light background for any dark logo
+  // Get color for coin logo background from API or default to white
+  Color getCoinLogoBackground(CryptoCoin coin) {
+    if (coin.iconBackgroundColor != null && coin.iconBackgroundColor!.isNotEmpty) {
+      try {
+        return _hexToColor(coin.iconBackgroundColor!);
+      } catch (e) {
+        // If parsing fails, return white as default
+        return Colors.white;
+      }
     }
+    // Default to white background
+    return Colors.white;
+  }
+
+  // Helper method to convert hex color string to Color
+  Color _hexToColor(String hexString) {
+    final buffer = StringBuffer();
+    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
+    buffer.write(hexString.replaceFirst('#', ''));
+    return Color(int.parse(buffer.toString(), radix: 16));
   }
 
   Widget _buildCoinIcon(CryptoCoin coin) {
     // Get background color for specific coins with dark logos
-    final bgColor = getCoinLogoBackground(coin.code);
-    final iconContrastColor = _getContrastColor(bgColor);
+    final bgColor = getCoinLogoBackground(coin);
     
     if (coin.icon != null && coin.icon!.isNotEmpty) {
       // Check if the icon is an SVG
@@ -314,26 +251,18 @@ class _FavoritesTabState extends State<FavoritesTab> {
             color: bgColor,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Fallback icon (shown until SVG loads)
-              Icon(
+          child: Padding(
+            padding: const EdgeInsets.all(2.0),
+            child: SvgPicture.network(
+              coin.icon!,
+              width: 36,
+              height: 36,
+              placeholderBuilder: (BuildContext context) => Icon(
                 getCryptoIcon(coin.code),
                 size: 20,
-                color: iconContrastColor,
+                color: _getContrastColor(bgColor),
               ),
-              // SVG on top when loaded
-              Padding(
-                padding: const EdgeInsets.all(2.0),
-                child: SvgPicture.network(
-                  coin.icon!,
-                  width: 36,
-                  height: 36,
-                  placeholderBuilder: (BuildContext context) => SizedBox.shrink(),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       } else {
@@ -345,37 +274,32 @@ class _FavoritesTabState extends State<FavoritesTab> {
             color: bgColor,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Fallback icon (shown until image loads)
-              Icon(
-                getCryptoIcon(coin.code),
-                size: 20,
-                color: iconContrastColor,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.all(2.0),
+              child: Image.network(
+                coin.icon!,
+                width: 36,
+                height: 36,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    getCryptoIcon(coin.code),
+                    size: 20,
+                    color: _getContrastColor(bgColor),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Icon(
+                    getCryptoIcon(coin.code),
+                    size: 20,
+                    color: _getContrastColor(bgColor),
+                  );
+                },
               ),
-              // Image on top when loaded
-              ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Padding(
-                  padding: const EdgeInsets.all(2.0),
-                  child: Image.network(
-                    coin.icon!,
-                    width: 36,
-                    height: 36,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      // Return empty container to show the fallback icon
-                      return SizedBox.shrink();
-                    },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return SizedBox.shrink(); // Show the fallback icon during loading
-                    },
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       }
@@ -391,7 +315,7 @@ class _FavoritesTabState extends State<FavoritesTab> {
         child: Icon(
           getCryptoIcon(coin.code),
           size: 24,
-          color: iconContrastColor,
+          color: _getContrastColor(bgColor),
         ),
       );
     }
@@ -592,7 +516,7 @@ class _FavoritesTabState extends State<FavoritesTab> {
             : Theme.of(context).colorScheme.secondary;
             
         // Get background color for specific coins with dark logos
-        final bgColor = getCoinLogoBackground(coin.code);
+        final bgColor = getCoinLogoBackground(coin);
             
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
