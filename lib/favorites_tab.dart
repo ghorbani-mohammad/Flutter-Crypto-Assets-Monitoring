@@ -220,65 +220,190 @@ class _FavoritesTabState extends State<FavoritesTab> {
         return Icons.trending_up;
       case 'matic':
         return Icons.hexagon;
+      case 'ton':
+        return Icons.circle_rounded;
+      case 'cake':
+        return Icons.cake;
+      case 'usdt':
+        return Icons.money;
+      case 'ada':
+        return Icons.auto_awesome;
+      case 's':
+        return Icons.speed;
+      case 'sol':
+        return Icons.wb_sunny;
+      case 'avax':
+        return Icons.timeline;
+      case 'metis':
+        return Icons.blur_circular;
+      case 'dot':
+        return Icons.grid_view;
+      case 'xrp':
+        return Icons.waterfall_chart;
+      case 'ltc':
+        return Icons.monetization_on_outlined;
+      case 'doge':
+        return Icons.pets;
+      case 'shib':
+        return Icons.emoji_nature;
+      case 'link':
+        return Icons.link;
+      case 'atom':
+        return Icons.public;
+      case 'uni':
+        return Icons.track_changes;
+      case 'dai':
+        return Icons.brightness_high;
+      case 'op':
+        return Icons.light_mode;
       default:
         return Icons.monetization_on;
     }
   }
 
+  // Get color for coin logo background
+  Color getCoinLogoBackground(String code) {
+    switch (code.toLowerCase()) {
+      case 'ton':
+        return Colors.blue.shade300;
+      case 'cake':
+        return Colors.amber.shade300;
+      case 's':
+        return Colors.indigo.shade300;
+      case 'ada':
+        return Colors.blue.shade200;
+      case 'usdt':
+        return Colors.green.shade200;
+      case 'btc':
+        return Colors.orange.shade200;
+      case 'eth':
+        return Colors.purple.shade200;
+      case 'bnb':
+        return Colors.yellow.shade200;
+      case 'trx':
+        return Colors.red.shade200;
+      case 'matic':
+        return Colors.indigo.shade200;
+      case 'ltc':
+        return Colors.blueGrey.shade200;
+      case 'sol':
+        return Colors.deepPurple.shade300;
+      case 'avax':
+        return Colors.red.shade300;
+      case 'metis':
+        return Colors.teal.shade300;
+      case 'dot':
+        return Colors.pink.shade300;
+      default:
+        return Colors.grey.shade300; // Default light background for any dark logo
+    }
+  }
+
   Widget _buildCoinIcon(CryptoCoin coin) {
+    // Get background color for specific coins with dark logos
+    final bgColor = getCoinLogoBackground(coin.code);
+    final iconContrastColor = _getContrastColor(bgColor);
+    
     if (coin.icon != null && coin.icon!.isNotEmpty) {
       // Check if the icon is an SVG
       if (coin.icon!.toLowerCase().endsWith('.svg')) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: SvgPicture.network(
-            coin.icon!,
-            width: 40,
-            height: 40,
-            placeholderBuilder: (BuildContext context) => SizedBox(
-              width: 40,
-              height: 40,
-              child: Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
+        return Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Fallback icon (shown until SVG loads)
+              Icon(
+                getCryptoIcon(coin.code),
+                size: 20,
+                color: iconContrastColor,
+              ),
+              // SVG on top when loaded
+              Padding(
+                padding: const EdgeInsets.all(2.0),
+                child: SvgPicture.network(
+                  coin.icon!,
+                  width: 36,
+                  height: 36,
+                  placeholderBuilder: (BuildContext context) => SizedBox.shrink(),
                 ),
               ),
-            ),
+            ],
           ),
         );
       } else {
         // For non-SVG images (PNG, JPG, etc.)
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Image.network(
-            coin.icon!,
-            width: 40,
-            height: 40,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Icon(getCryptoIcon(coin.code), size: 24);
-            },
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return SizedBox(
-                width: 40,
-                height: 40,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                        : null,
-                    strokeWidth: 2,
+        return Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Fallback icon (shown until image loads)
+              Icon(
+                getCryptoIcon(coin.code),
+                size: 20,
+                color: iconContrastColor,
+              ),
+              // Image on top when loaded
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Padding(
+                  padding: const EdgeInsets.all(2.0),
+                  child: Image.network(
+                    coin.icon!,
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Return empty container to show the fallback icon
+                      return SizedBox.shrink();
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return SizedBox.shrink(); // Show the fallback icon during loading
+                    },
                   ),
                 ),
-              );
-            },
+              ),
+            ],
           ),
         );
       }
     } else {
-      return Icon(getCryptoIcon(coin.code), size: 24);
+      // For coins without icons, use a colored background with icon
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Icon(
+          getCryptoIcon(coin.code),
+          size: 24,
+          color: iconContrastColor,
+        ),
+      );
     }
+  }
+  
+  // Get a contrasting color for the icon based on background brightness
+  Color _getContrastColor(Color backgroundColor) {
+    // Calculate the luminance (brightness) of the background color
+    final luminance = backgroundColor.computeLuminance();
+    
+    // Return black for light backgrounds, white for dark backgrounds
+    return luminance > 0.5 ? Colors.black87 : Colors.white;
   }
 
   @override
@@ -462,19 +587,27 @@ class _FavoritesTabState extends State<FavoritesTab> {
         
         // Alternate between primary and secondary colors for list items
         final isEven = index % 2 == 0;
-        final avatarColor = isEven 
-            ? Theme.of(context).colorScheme.primaryContainer
-            : Theme.of(context).colorScheme.secondaryContainer;
         final iconColor = isEven
             ? Theme.of(context).colorScheme.primary
             : Theme.of(context).colorScheme.secondary;
             
+        // Get background color for specific coins with dark logos
+        final bgColor = getCoinLogoBackground(coin.code);
+            
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: avatarColor,
-              child: _buildCoinIcon(coin),
+            leading: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: bgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(1.0),
+                child: _buildCoinIcon(coin),
+              ),
             ),
             title: Text(
               coin.title,
