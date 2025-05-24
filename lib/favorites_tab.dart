@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'constants.dart';
 
 class CryptoCoin {
@@ -218,7 +219,7 @@ class _FavoritesTabState extends State<FavoritesTab> {
       case 'trx':
         return Icons.trending_up;
       case 'matic':
-        return Icons.polygon;
+        return Icons.hexagon;
       default:
         return Icons.monetization_on;
     }
@@ -226,33 +227,55 @@ class _FavoritesTabState extends State<FavoritesTab> {
 
   Widget _buildCoinIcon(CryptoCoin coin) {
     if (coin.icon != null && coin.icon!.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Image.network(
-          coin.icon!,
-          width: 40,
-          height: 40,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Icon(getCryptoIcon(coin.code), size: 24);
-          },
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return SizedBox(
+      // Check if the icon is an SVG
+      if (coin.icon!.toLowerCase().endsWith('.svg')) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: SvgPicture.network(
+            coin.icon!,
+            width: 40,
+            height: 40,
+            placeholderBuilder: (BuildContext context) => SizedBox(
               width: 40,
               height: 40,
               child: Center(
                 child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                      : null,
                   strokeWidth: 2,
                 ),
               ),
-            );
-          },
-        ),
-      );
+            ),
+          ),
+        );
+      } else {
+        // For non-SVG images (PNG, JPG, etc.)
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.network(
+            coin.icon!,
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Icon(getCryptoIcon(coin.code), size: 24);
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return SizedBox(
+                width: 40,
+                height: 40,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                        : null,
+                    strokeWidth: 2,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      }
     } else {
       return Icon(getCryptoIcon(coin.code), size: 24);
     }
