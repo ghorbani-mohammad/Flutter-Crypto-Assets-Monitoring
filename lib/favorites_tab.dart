@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:async';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'constants.dart';
 
 class CryptoCoin {
@@ -242,67 +241,42 @@ class _FavoritesTabState extends State<FavoritesTab> {
     final bgColor = getCoinLogoBackground(coin);
     
     if (coin.icon != null && coin.icon!.isNotEmpty) {
-      // Check if the icon is an SVG
-      if (coin.icon!.toLowerCase().endsWith('.svg')) {
-        return Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(20),
-          ),
+      // For PNG images
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
           child: Padding(
             padding: const EdgeInsets.all(2.0),
-            child: SvgPicture.network(
+            child: Image.network(
               coin.icon!,
               width: 36,
               height: 36,
-              placeholderBuilder: (BuildContext context) => Icon(
-                getCryptoIcon(coin.code),
-                size: 20,
-                color: _getContrastColor(bgColor),
-              ),
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(
+                  getCryptoIcon(coin.code),
+                  size: 20,
+                  color: _getContrastColor(bgColor),
+                );
+              },
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Icon(
+                  getCryptoIcon(coin.code),
+                  size: 20,
+                  color: _getContrastColor(bgColor),
+                );
+              },
             ),
           ),
-        );
-      } else {
-        // For non-SVG images (PNG, JPG, etc.)
-        return Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Padding(
-              padding: const EdgeInsets.all(2.0),
-              child: Image.network(
-                coin.icon!,
-                width: 36,
-                height: 36,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    getCryptoIcon(coin.code),
-                    size: 20,
-                    color: _getContrastColor(bgColor),
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Icon(
-                    getCryptoIcon(coin.code),
-                    size: 20,
-                    color: _getContrastColor(bgColor),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      }
+        ),
+      );
     } else {
       // For coins without icons, use a colored background with icon
       return Container(
@@ -521,18 +495,7 @@ class _FavoritesTabState extends State<FavoritesTab> {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
-            leading: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: bgColor,
-                shape: BoxShape.circle,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(1.0),
-                child: _buildCoinIcon(coin),
-              ),
-            ),
+            leading: _buildCoinIcon(coin),
             title: Text(
               coin.title,
               style: TextStyle(
