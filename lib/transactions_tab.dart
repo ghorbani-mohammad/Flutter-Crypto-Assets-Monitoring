@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'constants.dart';
+import 'cache_manager.dart';
 
 class Coin {
   final int id;
@@ -342,18 +344,27 @@ class _TransactionsTabState extends State<TransactionsTab> {
                           color: Colors.grey.shade200,
                         ),
                         child: ClipOval(
-                          child: Image.network(
-                            coin.iconUrl!,
+                          child: CachedNetworkImage(
+                            imageUrl: coin.iconUrl!,
                             width: 24,
                             height: 24,
                             fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(
-                                Icons.monetization_on,
-                                size: 16,
-                                color: Colors.grey.shade600,
-                              );
-                            },
+                            placeholder: (context, url) => Icon(
+                              Icons.monetization_on,
+                              size: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            errorWidget: (context, url, error) => Icon(
+                              Icons.monetization_on,
+                              size: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            // Use custom cache manager for better performance
+                            cacheManager: CryptoIconCacheManager.instance,
+                            maxWidthDiskCache: 50,
+                            maxHeightDiskCache: 50,
+                            memCacheWidth: 50,
+                            memCacheHeight: 50,
                           ),
                         ),
                       )

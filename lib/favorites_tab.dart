@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'constants.dart';
+import 'cache_manager.dart';
 
 class CryptoCoin {
   final String code;
@@ -241,7 +243,7 @@ class _FavoritesTabState extends State<FavoritesTab> {
     final bgColor = getCoinLogoBackground(coin);
     
     if (coin.icon != null && coin.icon!.isNotEmpty) {
-      // For PNG images
+      // For PNG images with caching
       return Container(
         width: 40,
         height: 40,
@@ -253,26 +255,27 @@ class _FavoritesTabState extends State<FavoritesTab> {
           borderRadius: BorderRadius.circular(18),
           child: Padding(
             padding: const EdgeInsets.all(2.0),
-            child: Image.network(
-              coin.icon!,
+            child: CachedNetworkImage(
+              imageUrl: coin.icon!,
               width: 36,
               height: 36,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return Icon(
-                  getCryptoIcon(coin.code),
-                  size: 20,
-                  color: _getContrastColor(bgColor),
-                );
-              },
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Icon(
-                  getCryptoIcon(coin.code),
-                  size: 20,
-                  color: _getContrastColor(bgColor),
-                );
-              },
+              placeholder: (context, url) => Icon(
+                getCryptoIcon(coin.code),
+                size: 20,
+                color: _getContrastColor(bgColor),
+              ),
+              errorWidget: (context, url, error) => Icon(
+                getCryptoIcon(coin.code),
+                size: 20,
+                color: _getContrastColor(bgColor),
+              ),
+              // Use custom cache manager for better performance
+              cacheManager: CryptoIconCacheManager.instance,
+              maxWidthDiskCache: 100,
+              maxHeightDiskCache: 100,
+              memCacheWidth: 100,
+              memCacheHeight: 100,
             ),
           ),
         ),
